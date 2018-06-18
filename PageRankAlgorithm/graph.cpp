@@ -38,6 +38,9 @@ void Graph::PageRank() {
 			break;
 		for (Node* node : this->Nodes) {
 			Inlinks = node->getInGoingLinks();
+			if (Inlinks.size() == 0)
+				continue;
+
 			for (Node* n : Inlinks) {
 				TempPR += n->getPRinLastIter() / n->getOutGoingLinks().size();
 				//std::cout << "Last PR -> " << n->getPRinLastIter() << "/" << "Out Links -> " << n->getOutGoingLinks().size() << " = " << TempPR << std::endl;
