@@ -5,11 +5,12 @@
 int main() {
 	
 	Graph g;
-	Node A, B, C, D;
+	Node A, B, C, D,E;
 	A.setUrl("www.A.com");
 	B.setUrl("www.B.com");
 	C.setUrl("www.C.com");
 	D.setUrl("www.D.com");
+	E.setUrl("www.E.com");
 
 	A.pushNewOutGoingLink(&B);
 	A.pushNewOutGoingLink(&C);
@@ -23,10 +24,11 @@ int main() {
 	g.addNewNode(&B);
 	g.addNewNode(&C);
 	g.addNewNode(&D);
+	g.addNewNode(&E);
 
 	g.PageRank();
 	g.printGraphInfo();
-	//D.printNodeInfo();
+	//E.printNodeInfo();
 
 	//g.printGraphInfo();
 	//std::cout << g.findNodeByUrl("www.A.com").getCurrentPR() << std::endl;
