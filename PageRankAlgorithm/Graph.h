@@ -5,8 +5,9 @@
 class Graph {
 
 	std::vector<Node*> Nodes;
+	unsigned int iter_counter;
 public:
-	Graph() {};
+	Graph() { this->iter_counter = 0; }
 	~Graph() {};
 
 	void addNewNode(Node*);

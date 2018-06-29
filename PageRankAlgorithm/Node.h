@@ -1,10 +1,11 @@
 #pragma once
 #include <vector>
-#define N  4.0
+#define N 2.0
+#define d 0.85
 
 class Node {
-	double PRinLastIter;
-	double PRinCurrentIter;
+	float PRinLastIter;
+	float PRinCurrentIter;
 	std::string url;
 	std::vector<Node*> outgoinglinks;
 	std::vector<Node*> ingoinglinks;
@@ -14,7 +15,7 @@ public:
 
 	double getCurrentPR();
 	double getPRinLastIter();
-	void setPR(double);
+	void setPR(float);
 	void setUrl(std::string);
 	std::string getUrl();
 	void pushNewOutGoingLink(Node*);

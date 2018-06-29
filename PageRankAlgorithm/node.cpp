@@ -1,16 +1,20 @@
 #include <iostream>
 #include <string>
 #include "Node.h"
-
+#include <math.h>
 
 Node::Node() {
 	this->PRinCurrentIter = 1 / N;
 	this->PRinLastIter = 1 / N;
 }
 
-void Node::setPR(double newPR) {
-	this->PRinLastIter = this->PRinCurrentIter;
-	this->PRinCurrentIter = newPR;
+void Node::setPR(float newPR) {
+	this->PRinLastIter = this->PRinCurrentIter; //roundf( this->PRinCurrentIter * 1000) / 1000;  ==> round to 3 decimal places
+	this->PRinCurrentIter = newPR; //roundf( this->PRinCurrentIter * 1000) / 1000;  ==> round to 3 decimal places
+
+	/*
+		Rounding to less decimal places , results with less iterations.
+	*/
 }
 
 void Node::setUrl(std::string newUrl) {

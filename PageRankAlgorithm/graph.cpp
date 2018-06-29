@@ -26,36 +26,45 @@ void Graph::printGraphInfo() {
 		std::cout << "Out Going Links: " << node->getOutGoingLinks().size() << std::endl;
 		std::cout << std::endl;
 	}
+	std::cout << "Number of iterations: " << this->iter_counter << std::endl;
+	std::cout << std::endl;
 }
 
 void Graph::PageRank() {
-	int flag = 0;
-	double TempPR=0;
+	bool flag = false;
+	float TempPR=0;
 	std::vector<Node*> Inlinks;
-
+	
 	while (true) {
-		if (flag == 1000)// num of iter
+		if (flag)
 			break;
+
+		flag = true;
+
 		for (Node* node : this->Nodes) {
 			Inlinks = node->getInGoingLinks();
-			if (Inlinks.size() == 0)
-				continue;
 
 			for (Node* n : Inlinks) {
 				TempPR += n->getPRinLastIter() / n->getOutGoingLinks().size();
 				//std::cout << "Last PR -> " << n->getPRinLastIter() << "/" << "Out Links -> " << n->getOutGoingLinks().size() << " = " << TempPR << std::endl;
 				//std::cout << "PR of -> " << node->getUrl() << std::endl;
-				//td::cout << "URL : " << n->getUrl() << " ->LastPR: " << n->getPRinLastIter() << std::endl;
+				//std::cout << "URL : " << n->getUrl() << " ->LastPR: " << n->getPRinLastIter() << std::endl;
 			}
 			//std::cout << std::endl;
+			TempPR = (1 - d) + d*TempPR;
 			node->setPR(TempPR);
 			TempPR = 0;
 		}
+		//std::cout << "Iteration : " << this->iter_counter << std::endl;
 		for (Node* n : this->Nodes) {
+			//std::cout << " Last : " << n->getPRinLastIter() << " Current : " <<  n->getCurrentPR() << std::endl;
+			if (n->getPRinLastIter() != n->getCurrentPR())
+				flag = false;
+
 			n->updateLastPR();
 		}
 		//std::cout << "---------------------------------------------------------------------" << std::endl;
-		flag++;
+		this->iter_counter++;
 	}
 	
 }
