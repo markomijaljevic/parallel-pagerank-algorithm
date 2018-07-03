@@ -6,6 +6,7 @@ class Graph {
 
 	std::vector<Node*> Nodes;
 	unsigned int iter_counter;
+	float normalize_sum;
 public:
 	Graph() { this->iter_counter = 0; }
 	~Graph() {};
