@@ -21,7 +21,7 @@ Node* Graph::findNodeByUrl(std::string url) {
 void Graph::printGraphInfo() {
 	for (Node* node : this->Nodes) {
 		std::cout << "Url: " << node->getUrl() << std::endl;
-		std::cout << "PR: " << node->getCurrentPR() << std::endl;
+		std::cout << "PR: " << ( node->getCurrentPR() / this->normalize_sum ) << std::endl;
 		std::cout << "In Going Links: " << node->getInGoingLinks().size() << std::endl;
 		std::cout << "Out Going Links: " << node->getOutGoingLinks().size() << std::endl;
 		std::cout << std::endl;
@@ -40,6 +40,7 @@ void Graph::PageRank() {
 			break;
 
 		flag = true;
+		this->normalize_sum = 0;
 
 		for (Node* node : this->Nodes) {
 			Inlinks = node->getInGoingLinks();
@@ -51,7 +52,7 @@ void Graph::PageRank() {
 				//std::cout << "URL : " << n->getUrl() << " ->LastPR: " << n->getPRinLastIter() << std::endl;
 			}
 			//std::cout << std::endl;
-			TempPR = (1 - d) + d*TempPR;
+			TempPR = (1 - d) + d * TempPR;
 			node->setPR(TempPR);
 			TempPR = 0;
 		}
@@ -62,6 +63,7 @@ void Graph::PageRank() {
 				flag = false;
 
 			n->updateLastPR();
+			this->normalize_sum += n->getCurrentPR();
 		}
 		//std::cout << "---------------------------------------------------------------------" << std::endl;
 		this->iter_counter++;
