@@ -5,7 +5,7 @@
 int main() {
 	
 	Graph g;
-	Node A, B, C, D,E,F,S1,S2,S3,S4,S5;
+	Node A, B, C, D, E, F, S1, S2, S3, S4, S5;
 	A.setUrl("www.A.com");
 	B.setUrl("www.B.com");
 	C.setUrl("www.C.com");
@@ -56,5 +56,5 @@ int main() {
 
 	//E.printNodeInfo();
 	//g.printGraphInfo();
-	//std::cout << g.findNodeByUrl("www.A.com").getCurrentPR() << std::endl;
+	//std::cout << g.findNodeByUrl("www.A.com")->getCurrentPR() << std::endl;
 }

@@ -1,5 +1,0 @@
-﻿  pagerank.cpp
-c:\users\marko\documents\visual studio 2015\projects\pagerankalgorithm\pagerankalgorithm\pagerank.cpp(70): error C2065: 'i': undeclared identifier
-c:\users\marko\documents\visual studio 2015\projects\pagerankalgorithm\pagerankalgorithm\pagerank.cpp(70): error C2228: left of '.index' must have class/struct/union
-c:\users\marko\documents\visual studio 2015\projects\pagerankalgorithm\pagerankalgorithm\pagerank.cpp(70): error C2228: left of '.outgoingLinks' must have class/struct/union
-c:\users\marko\documents\visual studio 2015\projects\pagerankalgorithm\pagerankalgorithm\pagerank.cpp(70): error C2228: left of '.size' must have class/struct/union
