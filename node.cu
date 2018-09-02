@@ -43,19 +43,12 @@ void Node::updateLastPR() {
 
 
 void Node::pushNewOutGoingLink(Node* node) {
-	//std::cout << "Pushing new out link ... " << std::endl;
 	this->outlinks.push_back(node);
-	//std::cout << "Adresa Èvorova na poèetku " << &node << " Tip " << typeid(node).name() << " Velicina " << sizeof(node) << " Ime " << node.getUrl() << std::endl;
 	node->pushNewInGoingLink(this);
-	//std::cout << std::endl;
 }
 
 void Node::pushNewInGoingLink(Node* node) {
-	//std::cout << "Pushing new in link ... " << std::endl;
 	this->inlinks.push_back(node);
-	//std::cout << typeid(node).name() << std::endl;
-	//std::cout << "Adresa Èvorova na poèetku " << &node << " Tip " << typeid(node).name() << " Velicina " << sizeof(node) << " Ime " << node.getUrl() << std::endl;
-	//std::cout << std::endl;
 }
 
 thrust::host_vector<Node*> Node::getInGoingLinks() {

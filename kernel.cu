@@ -45,9 +45,6 @@ int main() {
 	S4.pushNewOutGoingLink(&E);
 	S5.pushNewOutGoingLink(&E);
 
-	//std::cout << "Adresa Èvorova na poèetku " << &A << " Tip " << typeid(A).name() << " Velicina " << sizeof(A) << " Ime " << A.getUrl()<< std::endl;
-
-
 	g.addNewNode(&A);
 	g.addNewNode(&B);
 	g.addNewNode(&C);
@@ -60,18 +57,10 @@ int main() {
 	g.addNewNode(&S4);
 	g.addNewNode(&S5);
 
-	/*std::cout << "1 --> CPU PageRank , 2 --> GPU PageRank" << std::endl;
-	std::cin >> type;*/
 	
 	g.PageRank_GPU();
 	//g.PageRank_CPU();
 	g.printGraphInfo();
-
-	//A.printNodeInfo();
-
-	//g.printGraphInfo();
-	//std::cout << g.findNodeByUrl("www.A.com").getCurrentPR() << std::endl;
-
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	std::cout << "Vrijeme --> " << duration << '\n';

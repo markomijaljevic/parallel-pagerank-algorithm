@@ -6,11 +6,8 @@
 
 
 void Graph::addNewNode(Node* newNode) {
-	//std::cout << "Adding newNode..." << std::endl;
-	//std::cout << "Adresa Èvorova na poèetku " << &*newNode << " Tip " << typeid(newNode).name() << " Velicina " << sizeof(newNode) << " Ime " << newNode->getUrl() << std::endl;
 	newNode->sizeOfOutLinks = newNode->getOutGoingLinks().size();
 	this->Nodes.push_back(newNode);
-	//std::cout << std::endl;
 }
 
 size_t Graph::getNodeCount() {
@@ -20,15 +17,12 @@ size_t Graph::getNodeCount() {
 
 Node* Graph::getInLinksNodes(thrust::host_vector<Node*> links) {
 
-	//std::cout << "adresa inlinksa u funkciju " <<  &links[0] << std::endl;
-
 	this->inLinks = new Node[links.size()];
 	int i = 0;
 	for (Node* node_ptr : links) {
 		inLinks[i] = *node_ptr;
 		i++;
 	}
-	//std::cout << "adresa u nizu " << &inLinks[0] << " ime " << inLinks[0].getUrl() << std::endl;
 	return &inLinks[0];
 }
 
@@ -73,7 +67,6 @@ void Graph::PageRank_GPU() {
 	bool* dev_flag;
 	float* dev_normalize_sum;
 	float* dev_PR;
-	//float* niz_PR;
 	float PR;
 
 	cudaError_t cudaStatus;
@@ -88,17 +81,9 @@ void Graph::PageRank_GPU() {
 
 			sizeOfInLinks = node->getInGoingLinks().size();
 
-			//std::cout << "Ime covra " << node->getUrl() << " adresa " << &node << std::endl;
-
 			if (sizeOfInLinks > 0) {
 
 				inLinks = getInLinksNodes(node->inlinks);
-
-				//std::cout << "adresa inlinksa " << &node->inlinks << std::endl;
-
-				//for (int i = 0; i < sizeOfInLinks; i++) {
-				//	std::cout << "       Ime covra " << inLinks[i].getUrl() << " adresa " << &inLinks[i]<< std::endl;
-				//}
 
 				cudaStatus = cudaSetDevice(0);
 				if (cudaStatus != cudaSuccess) {
@@ -117,8 +102,6 @@ void Graph::PageRank_GPU() {
 					std::cout << "cudaMalloc failed" << std::endl;
 					return;
 				}
-
-				//niz_PR = new float[sizeOfInLinks];
 
 				cudaStatus = cudaMemcpy(dev_inLinks, inLinks, sizeOfInLinks * sizeof(Node), cudaMemcpyHostToDevice);
 				if (cudaStatus != cudaSuccess) {
@@ -140,13 +123,6 @@ void Graph::PageRank_GPU() {
 					 return;
 				}
 
-				/*cudaStatus = cudaMemcpy(inLinks, dev_inLinks, sizeOfInLinks * sizeof(Node), cudaMemcpyDeviceToHost);
-				if (cudaStatus != cudaSuccess) {
-					std::cout << "cudaMemcpy failed" << std::endl;
-					return;
-				}*/
-				//cudaMemcpy(niz_PR, dev_PR, sizeOfInLinks * sizeof(float), cudaMemcpyDeviceToHost);
-
 				//wrap raw pointer with a device_ptr
 				thrust::device_ptr<float> dev_ptr_PR(dev_PR);
 				//copy memory to a new dev vector , and use vector 
@@ -156,19 +132,15 @@ void Graph::PageRank_GPU() {
 				PR = thrust::reduce(PageRankValue.begin(), PageRankValue.end(), (float)0, thrust::plus<float>());
 				/*PageRankValue.clear();
 				PageRankValue.shrink_to_fit();*/
-				//std::cout << "Pr nakon reduce " << PR << std::endl;
 
 				delete[] this->inLinks;
-				//delete[] niz_PR;
 				this->inLinks = 0;
 				PageRankValue.clear();
 				PageRankValue.shrink_to_fit();
 			}
 
 			PR = (1 - d) + (d * PR);
-
 			node->setPR(PR);
-			//std::cout << "Gpu -> " << PR << std::endl;
 			PR = 0;
 
 			if (sizeOfInLinks > 0) {
@@ -183,7 +155,7 @@ void Graph::PageRank_GPU() {
 
 		temp_Nodes = getInLinksNodes(this->Nodes);
 	
-		sizeOfInLinks = this->Nodes.size();// kolicina cvorova u mreži
+		sizeOfInLinks = this->Nodes.size();
 
 		cudaStatus = cudaMalloc((void**)&dev_Nodes, sizeOfInLinks * sizeof(Node));
 		if (cudaStatus != cudaSuccess) {
@@ -240,8 +212,6 @@ void Graph::PageRank_GPU() {
 		thrust::device_vector<float> norm_sum(dev_ptr_sum, dev_ptr_sum + sizeOfInLinks);
 
 		this->normalize_sum = thrust::reduce(norm_sum.begin(), norm_sum.end(), (float)0, thrust::plus<float>());
-		//std::cout << this->normalize_sum << std::endl;
-
 
 		cudaFree(dev_Nodes);
 		cudaFree(dev_flag);
