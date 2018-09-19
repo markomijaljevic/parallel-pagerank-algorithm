@@ -2,31 +2,33 @@
 #include "device_launch_parameters.h"
 #include <iostream>
 #include <string>
+#include <fstream>
+#include <ctime>
 #include <vector>
 #include <math.h>
 #include <thrust\reduce.h>
 #include <thrust\device_ptr.h>
 #include <thrust\device_vector.h>
 
-#define N 11.0
+#define N 9663
 #define d 0.85
 
-int global_index = 0; // zamijeniti s velicinom vektora èvorova
+int global_index = 0; 
 
 struct Node {
 	std::string url;
-	double PRInLastIter = 1 / N;
-	double PRInCurrentIter = 1 / N;
-	int inLinks[10];
-	int outLinks[5]; // ako radi dinamièki alocirati velièinu
+	double PRInLastIter = (double)1 / N;
+	double PRInCurrentIter = (double)1 / N;
+	int inLinks[N];
+	int outLinks[N];
 	int index = 0;
-	int outLinksIndex = 0;
-	int inLinksIndex = 0;
-	int sizeOfInLinks = 0;
-	int sizeOfOutLinks = 0;
+	int outLinksIndex = -1;
+	int inLinksIndex = -1;
 	int iter;
-	Node() { this->index = global_index; global_index++; }
-	~Node() { global_index--; }
+
+	Node() {}
+	Node(std::string);
+	~Node(){}
 
 	void isLinkingTo(Node&);
 	void pushInLink(int);
@@ -39,35 +41,85 @@ struct Graph {
 	void addNode(Node);
 	void pagerank_gpu();
 	void printGraphInfo();
+	void printTopPageRanks();
 };
 
+Node::Node(std::string url) {
+	this->url = url;
+	this->index = global_index;
+	global_index++;
+	//std::cout << global_index << std::endl;
+}
+
 void Node::isLinkingTo(Node& node) {
-	this->outLinks[this->outLinksIndex]= node.index;
 	this->outLinksIndex++;
+	this->outLinks[this->outLinksIndex]= node.index;
 	node.pushInLink(this->index);
 }
 
 void Node::pushInLink(int indexOfNode) {
-	this->inLinks[this->inLinksIndex] = indexOfNode;
 	this->inLinksIndex++;
+	this->inLinks[this->inLinksIndex] = indexOfNode;
 }
 
 void Graph::addNode(Node node) {
-	node.sizeOfInLinks = node.inLinksIndex + 1;
-	node.sizeOfOutLinks = node.outLinksIndex + 1;
 	this->nodes.push_back(node);
 }
 
 void Graph::printGraphInfo() {
+
+	long double sumOfPR = 0;
+	std::ofstream file;
+	file.open("pagerank_results.txt");
 	for (Node node : this->nodes) {
-		std::cout << "Url: " << node.url << std::endl;
-		std::cout << "PR: " << (node.PRInCurrentIter / this->normalize_sum ) << std::endl;
-		std::cout << "In Going Links: " << node.inLinksIndex + 1<< std::endl;
-		std::cout << "Out Going Links: " << node.outLinksIndex + 1 << std::endl;
-		std::cout << std::endl;
+		file << "Url: " << node.url << std::endl;
+		file << '\t' << "PR: " << (node.PRInCurrentIter / this->normalize_sum)<< std::endl;
+		file << '\t' << "In Going Links: " << node.inLinksIndex + 1 << std::endl;
+		file << '\t' << "Out Going Links: " << node.outLinksIndex + 1 << std::endl;
+		file << std::endl;
+		sumOfPR += node.PRInCurrentIter / this->normalize_sum;
 	}
-	std::cout << "Number of iterations: " << this->iterCounter << std::endl;
-	std::cout << std::endl;
+	file.close();
+	std::cout << "Normalized sum = " << sumOfPR << std::endl;
+	std::cout << "Number of iterations = " << this->iterCounter << std::endl;
+
+	printTopPageRanks();
+}
+
+void Graph::printTopPageRanks() {
+
+	std::ofstream file;
+	file.open("topPageRanks.txt");
+	int i = 0;
+	Node top_node = this->nodes[0];
+	Node temp_node;
+
+	while (true) {
+		temp_node = this->nodes[0];
+		for (Node n : this->nodes) {
+			if (i < 1 && n.PRInCurrentIter >= top_node.PRInCurrentIter) {
+				top_node = n;
+			}
+			if (i >= 1 && n.PRInCurrentIter > temp_node.PRInCurrentIter && n.PRInCurrentIter < top_node.PRInCurrentIter) {
+				temp_node = n;
+			}
+		}
+
+		if (top_node.PRInCurrentIter == temp_node.PRInCurrentIter) {
+			break;
+		}
+		else if(i >= 1)
+			top_node = temp_node;
+		
+		file << "Url: " << top_node.url << std::endl;
+		file << '\t' << "PR: " << (top_node.PRInCurrentIter / this->normalize_sum) << std::endl;
+		file << '\t' << "In Going Links: " << top_node.inLinksIndex + 1 << std::endl;
+		file << '\t' << "Out Going Links: " << top_node.outLinksIndex + 1 << std::endl;
+		file << std::endl;
+
+		i++;
+	}
+	file.close();
 }
 
 __global__ void calculatePageRank(Node* nodes,double* normSum, int* iterCounter) {
@@ -81,9 +133,9 @@ __global__ void calculatePageRank(Node* nodes,double* normSum, int* iterCounter)
 
 		*iterCounter +=1;
 
-		for (int i = 0; i < nodes[index].sizeOfInLinks - 1; i++) {
+		for (int i = 0; i < nodes[index].inLinksIndex + 1; i++) {
 			j = nodes[index].inLinks[i];
-			PR += ( nodes[j].PRInCurrentIter / ( nodes[j].sizeOfOutLinks - 1 ));
+			PR += ( nodes[j].PRInCurrentIter / ( nodes[j].outLinksIndex + 1 ));
 		}
 
 		PR = (1 - d) + d * PR;
@@ -92,11 +144,12 @@ __global__ void calculatePageRank(Node* nodes,double* normSum, int* iterCounter)
 		nodes[index].PRInCurrentIter = PR;
 
 		PR = 0;
-
+	
 		if (nodes[index].PRInLastIter != nodes[index].PRInCurrentIter)
 			continue;
 
 		normSum[index] = nodes[index].PRInCurrentIter;
+
 		break;
 	}
 }
@@ -105,10 +158,9 @@ void Graph::pagerank_gpu() {
 
 	Node* devNodes;
 	int sizeOfNodes = this->nodes.size();
-	int i = 0;
-	cudaError_t cudaStatus;
-	double* devNormSum;
 	int* devIterCounter;
+	double* devNormSum;
+	cudaError_t cudaStatus;
 
 	cudaStatus = cudaSetDevice(0);
 	if (cudaStatus != cudaSuccess) {
@@ -140,9 +192,13 @@ void Graph::pagerank_gpu() {
 		return;
 	}
 
+	dim3 threadsPerBlock(1024, 1, 1);
+	dim3 blocksPerGrid(ceil((double)N / threadsPerBlock.x), 1, 1);
 
-	calculatePageRank << < 1, sizeOfNodes >> > (devNodes, devNormSum, devIterCounter);
+	std::cout <<"Blocks per grid = " << blocksPerGrid.x << std::endl;
+	std::cout << "Threads per block = " << threadsPerBlock.x << std::endl;
 
+	calculatePageRank <<< blocksPerGrid, threadsPerBlock>>> (devNodes, devNormSum, devIterCounter);
 
 	cudaStatus = cudaGetLastError();
 	if (cudaStatus != cudaSuccess) {
@@ -171,7 +227,7 @@ void Graph::pagerank_gpu() {
 	thrust::device_ptr<double> dev_ptr_sum(devNormSum);
 	thrust::device_vector<double> norm_sum(dev_ptr_sum, dev_ptr_sum + sizeOfNodes);
 
-	this->normalize_sum = thrust::reduce(norm_sum.begin(), norm_sum.end(), (float)0, thrust::plus<double>());
+	this->normalize_sum = thrust::reduce(norm_sum.begin(), norm_sum.end(), (double)0, thrust::plus<double>());
 
 	cudaFree(devNodes);
 	cudaFree(devNormSum);
@@ -180,47 +236,32 @@ void Graph::pagerank_gpu() {
 
 int main(void) {
 
-	Graph g;
-	Node A, B, C, D, E, F, S1, S2, S3, S4, S5;
-	A.url = "wwww.a.com";
-	B.url = "wwww.b.com";
-	C.url = "wwww.c.com";
-	D.url = "wwww.d.com";
-	E.url = "wwww.e.com";
-	F.url = "wwww.f.com";
+	Graph graph;
+	std::ifstream dataset("dataset.txt");
+	std::string line;
+	std::size_t npos;
+	std::clock_t start;
+	double duration;
 
-	B.isLinkingTo(C);
-	D.isLinkingTo(A);
-	D.isLinkingTo(B);
-	E.isLinkingTo(B);
-	E.isLinkingTo(D);
-	E.isLinkingTo(F);
-	F.isLinkingTo(B);
-	F.isLinkingTo(E);
-	C.isLinkingTo(B);
+	while (std::getline(dataset, line)) {
+		
+		if (line[0] == 'n') {
+			npos = line.find_first_of('h', 4);
+			Node node(line.substr(npos, line.length()));
+			graph.addNode(node);
+		}
+		else { // if line[0] == 'e'
+			npos = line.find_first_of(' ', 2);
+			graph.nodes[std::stoi(line.substr(2, npos - 2))].isLinkingTo(graph.nodes[std::stoi(line.substr(npos + 1, line.length() - npos))]);
+		}
+	}
 
-	S1.isLinkingTo(B);
-	S1.isLinkingTo(E);
-	S2.isLinkingTo(B);
-	S2.isLinkingTo(E);
-	S3.isLinkingTo(B);
-	S3.isLinkingTo(E);
-	S4.isLinkingTo(E);
-	S5.isLinkingTo(E);
+	start = std::clock();
+	///
+	graph.pagerank_gpu();
+	///
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 
-	g.addNode(A);
-	g.addNode(B);
-	g.addNode(C);
-	g.addNode(D);
-	g.addNode(E);
-	g.addNode(F);
-	g.addNode(S1);
-	g.addNode(S2);
-	g.addNode(S3);
-	g.addNode(S4);
-	g.addNode(S5);
-	
-	g.pagerank_gpu();
-	g.printGraphInfo();
-
+	std::cout << "PageRank calculation is finished with time of >>  " << duration <<" sec <<" << std::endl;
+	graph.printGraphInfo();
 }
