@@ -1,5 +1,8 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
+#include <device_functions.h>
+#include <cuda.h>
+#include <cuda_runtime_api.h>
 #include <iostream>
 #include <string>
 #include <fstream>
@@ -10,15 +13,15 @@
 #include <thrust\device_ptr.h>
 #include <thrust\device_vector.h>
 
-#define N 9663
+#define N 9664
 #define d 0.85
 
 int global_index = 0; 
 
 struct Node {
 	std::string url;
-	double PRInLastIter = (double)1 / N;
-	double PRInCurrentIter = (double)1 / N;
+	double PRInLastIter = (double)1/N;
+	double PRInCurrentIter = (double)1/N;
 	int inLinks[N];
 	int outLinks[N];
 	int index = 0;
@@ -40,6 +43,7 @@ struct Graph {
 	double normalize_sum;
 	void addNode(Node);
 	void pagerank_gpu();
+	void pagerank_cpu();
 	void printGraphInfo();
 	void printTopPageRanks();
 };
@@ -48,7 +52,6 @@ Node::Node(std::string url) {
 	this->url = url;
 	this->index = global_index;
 	global_index++;
-	//std::cout << global_index << std::endl;
 }
 
 void Node::isLinkingTo(Node& node) {
@@ -122,35 +125,42 @@ void Graph::printTopPageRanks() {
 	file.close();
 }
 
-__global__ void calculatePageRank(Node* nodes,double* normSum, int* iterCounter) {
+__device__ bool flag;
 
-	int index = threadIdx.x;
+__global__ void calculatePageRank(Node* nodes,double* normSum, int* iterCounter,int size) {
+
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
 	double PR = 0;
 	int j;
 	*iterCounter = -1;
+
+	if (index < size) {
+		while (true) {
+			flag = false;
+
+			*iterCounter += 1;
+
+			for (int i = 0; i < nodes[index].inLinksIndex + 1; i++) {
+				j = nodes[index].inLinks[i];
+				PR += nodes[j].PRInCurrentIter / (nodes[j].outLinksIndex + 1);
+			}
+
+			PR = (1 - d) + d * PR;
+
+			nodes[index].PRInLastIter = nodes[index].PRInCurrentIter;
+			nodes[index].PRInCurrentIter = PR;
 	
-	while (true){
+			PR = 0;
 
-		*iterCounter +=1;
+			if (nodes[index].PRInLastIter != nodes[index].PRInCurrentIter)
+				flag = true;
 
-		for (int i = 0; i < nodes[index].inLinksIndex + 1; i++) {
-			j = nodes[index].inLinks[i];
-			PR += ( nodes[j].PRInCurrentIter / ( nodes[j].outLinksIndex + 1 ));
+			__syncthreads();
+
+			if (flag == false)
+				break;
 		}
-
-		PR = (1 - d) + d * PR;
-
-		nodes[index].PRInLastIter = nodes[index].PRInCurrentIter;
-		nodes[index].PRInCurrentIter = PR;
-
-		PR = 0;
-	
-		if (nodes[index].PRInLastIter != nodes[index].PRInCurrentIter)
-			continue;
-
 		normSum[index] = nodes[index].PRInCurrentIter;
-
-		break;
 	}
 }
 
@@ -198,20 +208,25 @@ void Graph::pagerank_gpu() {
 	std::cout <<"Blocks per grid = " << blocksPerGrid.x << std::endl;
 	std::cout << "Threads per block = " << threadsPerBlock.x << std::endl;
 
-	calculatePageRank <<< blocksPerGrid, threadsPerBlock>>> (devNodes, devNormSum, devIterCounter);
 
-	cudaStatus = cudaGetLastError();
-	if (cudaStatus != cudaSuccess) {
-		std::cout << "calculatePR launch failed: " << cudaGetErrorString(cudaStatus) << std::endl;;
-		return;
-	}
+	//for (int i = 0; i < 332; i++) {
 
-	cudaStatus = cudaDeviceSynchronize();
-	if (cudaStatus != cudaSuccess) {
-		std::cout << "cudaDeviceSynchronize returned error code " << cudaStatus << "after launching calculatePR!" << std::endl;
-		return;
-	}
+		calculatePageRank << < blocksPerGrid, threadsPerBlock >> > (devNodes, devNormSum, devIterCounter, N);
 
+		cudaStatus = cudaGetLastError();
+		if (cudaStatus != cudaSuccess) {
+			std::cout << "calculatePR launch failed: " << cudaGetErrorString(cudaStatus) << std::endl;;
+			return;
+		}
+
+		cudaStatus = cudaDeviceSynchronize();
+		if (cudaStatus != cudaSuccess) {
+			std::cout << "cudaDeviceSynchronize returned error code " << cudaStatus << "after launching calculatePR!" << std::endl;
+			return;
+		}
+
+	//}
+	
 	cudaStatus = cudaMemcpy(&this->nodes[0], devNodes, sizeOfNodes * sizeof(Node), cudaMemcpyDeviceToHost);
 	if (cudaStatus != cudaSuccess) {
 		std::cout << "cudaMemcpy failed" << std::endl;
@@ -229,9 +244,47 @@ void Graph::pagerank_gpu() {
 
 	this->normalize_sum = thrust::reduce(norm_sum.begin(), norm_sum.end(), (double)0, thrust::plus<double>());
 
+	std::cout << this->normalize_sum << std::endl;
+
 	cudaFree(devNodes);
 	cudaFree(devNormSum);
 	cudaFree(devIterCounter);
+}
+
+void Graph::pagerank_cpu() {
+
+	bool flag = true;
+	double PR = 0;
+
+	while (flag) {
+		flag = false;
+		int j;
+		this->normalize_sum = 0;
+
+		for (Node& n : this->nodes) {
+
+			for (int i = 0; i < n.inLinksIndex + 1; i++) {
+				j = n.inLinks[i];
+				PR += this->nodes[j].PRInLastIter / (this->nodes[j].outLinksIndex + 1);
+			}
+		
+
+			PR = (1 - d) + d * PR;
+			n.PRInLastIter = n.PRInCurrentIter;
+			n.PRInCurrentIter = PR;
+			this->normalize_sum += PR;
+			
+			PR = 0;
+
+			if ( n.PRInLastIter != n.PRInCurrentIter ) 
+				flag = true;
+
+		}// end of for
+
+		this->iterCounter++;
+	
+	}
+	std::cout << this->normalize_sum << std::endl;
 }
 
 int main(void) {
@@ -261,7 +314,16 @@ int main(void) {
 	graph.pagerank_gpu();
 	///
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "Parallel PageRank calculation is finished with time of >>  " << duration << " sec <<" << std::endl;
 
-	std::cout << "PageRank calculation is finished with time of >>  " << duration <<" sec <<" << std::endl;
+
+	/*start = std::clock();
+	std::cout << "CPU " << std::endl;
+	graph.pagerank_cpu();
+	///
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "PageRank calculation is finished with time of >>  " << duration << " sec <<" << std::endl;
+*/
+	
 	graph.printGraphInfo();
 }
